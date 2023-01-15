@@ -14,9 +14,16 @@ def read_in_chunks(file_object, chunk_size):
             break
         yield data
 
-def transfer_files(files, device, speed, chunk_size, timeout):
+def transfer_files(files, device, speed, chunk_size, timeout, wait):
 
-  port = serial.Serial( device, speed, timeout=timeout )
+  port = serial.Serial( device, speed,
+                        bytesize = serial.EIGHTBITS,
+                        parity = serial.PARITY_NONE,
+                        stopbits = serial.STOPBITS_ONE,
+                        timeout = timeout,
+                        xonxoff = False,
+                        rtscts = True,
+                        dsrdtr = False )
 
   for file in files:
 
@@ -34,6 +41,10 @@ def transfer_files(files, device, speed, chunk_size, timeout):
 
     print(f"Transferring [{file}] as [{transfer_file_name}] / [{transfer_file_size} bytes]")
 
+    # open port
+    if port.isOpen() is False:
+      port.open()
+    
     # discard current input
     #port.read_all()
 
@@ -58,31 +69,20 @@ def transfer_files(files, device, speed, chunk_size, timeout):
         port.write(chunk_len.to_bytes(4,'big'))         # 4 bytes
         port.write(chunk_data)                          # chunk_len bytes
         port.write(chunk_crc.to_bytes(4,'big'))         # 4 bytes
-        
-#        ack = bytearray()
-#        t0 = time.time()
-#        found = False
-#        while True:
-#          ack.append(port.read_all())
-#          p = ack.find("RSRXRECV")
-#          if p >= 0:
-#            found = True
-#            break
-#          t1 = time.time()
-#          if t1 - t0 > timeout:
-#            break
-#
-#        if found is not True:
-#          print("no ack response. abort the file.")
-#          break
-
+   
         crc = chunk_crc
 
       last_chunk_size = 0
       port.write(last_chunk_size.to_bytes(4,'big'))       # 4 bytes
 
-    port.write(b"RSTXDONE")
     port.close()
+    time.sleep(wait)
+
+  # closing eye catch
+  if port.isOpen() is False:
+    port.open()
+  port.write(b"RSTXDONE")
+
 
 def main():
 
@@ -92,11 +92,12 @@ def main():
     parser.add_argument("-d","--device", help="serial device name", default='/dev/tty.usbserial-AQ028S08')
     parser.add_argument("-s","--baudrate", help="baud rate", type=int, default=9600)
     parser.add_argument("-c","--chunk_size", help="chunk size", type=int, default=8192)
-    parser.add_argument("-t","--timeout", help="time out[sec]", type=int, default=600)
+    parser.add_argument("-t","--timeout", help="time out[sec]", type=int, default=180)
+    parser.add_argument("-w","--wait", help="wait time[sec]", type=int, default=5)
 
     args = parser.parse_args()
 
-    transfer_files(args.files, args.device, args.baudrate, args.chunk_size, args.timeout)
+    transfer_files(args.files, args.device, args.baudrate, args.chunk_size, args.timeout, args.wait)
 
 
 if __name__ == "__main__":
