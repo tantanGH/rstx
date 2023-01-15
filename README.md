@@ -39,7 +39,7 @@ RS232C Binary File Transfer Tool in Python
 ## Mac で USB - RS232C 変換ケーブルを選ぶ際の注意点
 
 USB - RS232C 変換ケーブルはネットワーク機器や制御機器との接続のために一定の需要があり、入手性はとても良く、値段も1000円台からあり安価です。
-ただし、使われているチップセットによって最近の macOS ではうまく認識されず /dev/tty.usbserial-* が出てこない場合があります。
+ただし、使われているチップセットによって最近の macOS ではうまく認識されず `/dev/tty.usbserial-*` が出てこない場合があります。
 
 我が家でうまくいかなかったケーブルの例
 - https://www.amazon.co.jp/gp/product/B00QUZY4UG/
