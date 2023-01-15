@@ -23,7 +23,7 @@ RS232C Binary File Transfer Tool in Python
 
     usage: rstx [-h] [-d DEVICE] [-s BAUDRATE] [-c CHUNK_SIZE] [-t TIMEOUT] files [files ...]
 
-`-d` でRS232Cポートのデバイス名を指定します。Windowsであれば `COM1` みたいな奴です。Macで USB-RS232C ケーブルを使っている場合は /dev/tty.usbserial-xxxx みたいになります。デフォルトで入っているのは我が家のMacのデバイス名ですw
+`-d` でRS232Cポートのデバイス名を指定します。Windowsであれば `COM1` みたいな奴です。Macで USB-RS232C ケーブルを使っている場合は `/dev/tty.usbserial-xxxx` みたいになります。デフォルトで入っているのは我が家のMacのデバイス名ですw
 
 `-s` で通信速度を指定します。相手方の RSRX.X での設定値に合わせてあげる必要があります。
 
@@ -36,9 +36,9 @@ RS232C Binary File Transfer Tool in Python
 
 ---
 
-## Mac で USB - Serial 変換ケーブルを選ぶ際の注意点
+## Mac で USB - RS232C 変換ケーブルを選ぶ際の注意点
 
-USB - Serial 変換ケーブルはネットワーク機器や制御機器との接続のために一定の需要があり、入手性はとても良く、値段も1000円台からあり安価です。
+USB - RS232C 変換ケーブルはネットワーク機器や制御機器との接続のために一定の需要があり、入手性はとても良く、値段も1000円台からあり安価です。
 ただし、使われているチップセットによって最近の macOS ではうまく認識されず /dev/tty.usbserial-* が出てこない場合があります。
 
 我が家でうまくいかなかったケーブルの例
