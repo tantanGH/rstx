@@ -42,10 +42,10 @@ USB - Serial 変換ケーブルはネットワーク機器や制御機器との�
 ただし、使われているチップセットによって最近の macOS ではうまく認識されず /dev/tty.usbserial-* が出てこない場合があります。
 
 我が家でうまくいかなかったケーブルの例
-https://www.amazon.co.jp/gp/product/B00QUZY4UG/
+- https://www.amazon.co.jp/gp/product/B00QUZY4UG/
 
 我が家でうまくいったケーブルの例
-https://www.amazon.co.jp/gp/product/B07589ZF9X/
+- https://www.amazon.co.jp/gp/product/B07589ZF9X/
 
 なお、Mac対応と謳われていたり、Mac用のドライバが付属していたりすることもありますが、基本的に macOS 11以上であればドライバ不要です。
 セキュリティの都合で macOS のデバイスドライバの仕組みが変わりつつありますので、古いデバイスドライバを導入してしまう前にまずは一度接続して /dev/tty.usbserial-* の存在を確認してみてください。
