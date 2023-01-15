@@ -75,14 +75,14 @@ def transfer_files(files, device, speed, chunk_size, timeout, wait):
       last_chunk_size = 0
       port.write(last_chunk_size.to_bytes(4,'big'))       # 4 bytes
 
-    port.close()
+#    port.close()
     time.sleep(wait)
 
   # closing eye catch
   if port.isOpen() is False:
     port.open()
   port.write(b"RSTXDONE")
-
+  port.close()
 
 def main():
 
