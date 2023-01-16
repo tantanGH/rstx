@@ -93,7 +93,7 @@ def main():
     parser.add_argument("-s","--baudrate", help="baud rate", type=int, default=9600)
     parser.add_argument("-c","--chunk_size", help="chunk size", type=int, default=8192)
     parser.add_argument("-t","--timeout", help="time out[sec]", type=int, default=180)
-    parser.add_argument("-w","--wait", help="wait time[sec]", type=int, default=5)
+    parser.add_argument("-w","--wait", help="wait time[sec]", type=int, default=10)
 
     args = parser.parse_args()
 
