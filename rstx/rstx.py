@@ -64,7 +64,7 @@ def transfer_files(files, device, speed, chunk_size, timeout, wait):
 
         chunk_len  = len( chunk_data )
         chunk_crc  = binascii.crc32( chunk_data, crc )
-        print(f"chunk length={chunk_len},crc={chunk_crc}")
+        print(f"chunk length={chunk_len},crc={chunk_crc:08X}")
 
         port.write(chunk_len.to_bytes(4,'big'))         # 4 bytes
         port.write(chunk_data)                          # chunk_len bytes
@@ -75,13 +75,14 @@ def transfer_files(files, device, speed, chunk_size, timeout, wait):
       last_chunk_size = 0
       port.write(last_chunk_size.to_bytes(4,'big'))       # 4 bytes
 
-#    port.close()
     time.sleep(wait)
 
   # closing eye catch
   if port.isOpen() is False:
     port.open()
   port.write(b"RSTXDONE")
+
+  time.sleep(wait)
   port.close()
 
 def main():
@@ -93,7 +94,7 @@ def main():
     parser.add_argument("-s","--baudrate", help="baud rate", type=int, default=19200)
     parser.add_argument("-c","--chunk_size", help="chunk size", type=int, default=8192)
     parser.add_argument("-t","--timeout", help="time out[sec]", type=int, default=180)
-    parser.add_argument("-w","--wait", help="wait time[sec]", type=int, default=10)
+    parser.add_argument("-w","--wait", help="wait time[sec]", type=int, default=3)
 
     args = parser.parse_args()
 
