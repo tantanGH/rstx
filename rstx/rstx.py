@@ -82,7 +82,7 @@ def transfer_files(files, device, speed, chunk_size, timeout, wait):
     port.open()
   port.write(b"RSTXDONE")
 
-  time.sleep(wait)
+  time.sleep(wait*5)
   port.close()
 
 def main():
