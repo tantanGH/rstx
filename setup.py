@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="rstx",
-    version="0.0.5",
+    version="0.3.0",
     author="tantanGH",
     author_email="tantanGH@github",
     license='MIT',

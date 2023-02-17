@@ -39,6 +39,7 @@ def transfer_files(files, device, speed, chunk_size, timeout, wait):
     
     transfer_file_name = (basename + extname + "                                ")[:32]
 
+    print("--")
     print(f"Transferring [{file}] as [{transfer_file_name}] / [{transfer_file_size} bytes]")
 
     # open port
@@ -58,13 +59,15 @@ def transfer_files(files, device, speed, chunk_size, timeout, wait):
     # initial crc
     crc = 0
 
+    # total size
+    total_size = 0
+
     with open(file, "rb") as f:
 
       for chunk_data in read_in_chunks(f, chunk_size):
 
         chunk_len  = len( chunk_data )
         chunk_crc  = binascii.crc32( chunk_data, crc )
-        print(f"chunk length={chunk_len},crc={chunk_crc:08X}")
 
         port.write(chunk_len.to_bytes(4,'big'))         # 4 bytes
         port.write(chunk_data)                          # chunk_len bytes
@@ -72,8 +75,13 @@ def transfer_files(files, device, speed, chunk_size, timeout, wait):
    
         crc = chunk_crc
 
+        total_size += chunk_len
+        print(f"\rSent {total_size} bytes. (CRC={chunk_crc:08X})", end="")
+
       last_chunk_size = 0
       port.write(last_chunk_size.to_bytes(4,'big'))       # 4 bytes
+
+      print("\nTransfer completed.")
 
     time.sleep(wait)
 
@@ -82,15 +90,18 @@ def transfer_files(files, device, speed, chunk_size, timeout, wait):
     port.open()
   port.write(b"RSTXDONE")
 
-  time.sleep(wait*5)
+  time.sleep(wait*3)
   port.close()
+
+  print("--")
+  print("Closed communication.")
 
 def main():
 
     parser = argparse.ArgumentParser()
 
     parser.add_argument("files", help="transfer files", nargs='+')
-    parser.add_argument("-d","--device", help="serial device name", default='/dev/tty.usbserial-AQ028S08')
+    parser.add_argument("--device", help="serial device name", default='/dev/tty.usbserial-AQ028S08')
     parser.add_argument("-s","--baudrate", help="baud rate", type=int, default=19200)
     parser.add_argument("-c","--chunk_size", help="chunk size", type=int, default=8192)
     parser.add_argument("-t","--timeout", help="time out[sec]", type=int, default=180)
