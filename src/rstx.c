@@ -86,10 +86,13 @@ int32_t main(int32_t argc, uint8_t* argv[]) {
     if (argv[i][0] == '-' && strlen(argv[i]) >= 2) {
       if (argv[i][1] == 's' && i+1 < argc) {
         baud_rate = atoi(argv[i+1]);
+        i++;
       } else if (argv[i][1] == 't' && i+1 < argc) {
         timeout = atoi(argv[i+1]);
+        i++;
       } else if (argv[i][1] == 'c' && i+1 < argc) {
         chunk_size = atoi(argv[i+1]);
+        i++;
       } else if (argv[i][1] == 'h') {
         show_help();
         goto exit;
