@@ -22,7 +22,7 @@ def transfer_files(files, device, speed, chunk_size, timeout, wait):
                         stopbits = serial.STOPBITS_ONE,
                         timeout = timeout,
                         xonxoff = False,
-                        rtscts = True,
+                        rtscts = False,
                         dsrdtr = False )
 
   for file in files:
@@ -49,18 +49,34 @@ def transfer_files(files, device, speed, chunk_size, timeout, wait):
     # discard current input
     #port.read_all()
 
-    # header 80 bytes
+    # header 16 + 80 bytes
+    port.write(b"                                ")     # 16 bytes (dummy)
     port.write(b"RSTX7650")                             #  8 bytes
     port.write(transfer_file_size.to_bytes(4,'big'))    #  4 bytes
     port.write(transfer_file_name.encode('cp932'))      # 32 bytes
     port.write(transfer_file_time.encode('ascii'))      # 19 bytes
     port.write(b".................")                    # 17 bytes
+    time.sleep(3)
+
+    # wait response
+    while port.in_waiting < 4:
+      pass
+
+    # ack 
+    ack = port.read_all()
+    if b"LINK" not in ack:
+      print("Failed to establish link.")
+      port.close()
+      return
 
     # initial crc
     crc = 0
 
     # total size
     total_size = 0
+
+    # abort flag
+    abort = False
 
     with open(file, "rb") as f:
 
@@ -69,14 +85,29 @@ def transfer_files(files, device, speed, chunk_size, timeout, wait):
         chunk_len  = len( chunk_data )
         chunk_crc  = binascii.crc32( chunk_data, crc )
 
-        port.write(chunk_len.to_bytes(4,'big'))         # 4 bytes
-        port.write(chunk_data)                          # chunk_len bytes
-        port.write(chunk_crc.to_bytes(4,'big'))         # 4 bytes
-   
-        crc = chunk_crc
+        for retry in range(3):
 
-        total_size += chunk_len
-        print(f"\rSent {total_size} bytes. (CRC={chunk_crc:08X})", end="")
+          port.write(chunk_len.to_bytes(4,'big'))         # 4 bytes
+          port.write(chunk_data)                          # chunk_len bytes
+          port.write(chunk_crc.to_bytes(4,'big'))         # 4 bytes
+   
+          while port.in_waiting < 4:
+            pass
+
+          ack = port.read(4)
+          if ack == b"EXIT":
+            abort = True
+            break 
+          elif ack == b"PASS":
+            crc = chunk_crc
+            total_size += chunk_len
+            print(f"\rSent {total_size} bytes. (CRC={chunk_crc:08X})", end="")
+            break
+         
+          print(f" Retry. ({retry+1}/3)")              
+
+        if abort:
+          break
 
       last_chunk_size = 0
       port.write(last_chunk_size.to_bytes(4,'big'))       # 4 bytes
@@ -84,6 +115,17 @@ def transfer_files(files, device, speed, chunk_size, timeout, wait):
       print("\nTransfer completed.")
 
     time.sleep(wait)
+
+    # wait response
+    while port.in_waiting < 4:
+      pass
+
+    # ack
+    ack = port.read(4)
+    if ack != b"DONE":
+      print("Failed to get success ack.")
+      port.close()
+      return
 
   # closing eye catch
   if port.isOpen() is False:

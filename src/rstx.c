@@ -10,16 +10,51 @@
 #include <zlib.h>
 #include "memory.h"
 
-#define VERSION "0.3.0"
+#define VERSION "0.4.0"
 
-inline static void* _doscall_malloc(size_t size) {
+inline static void* _dos_malloc(size_t size) {
   uint32_t addr = MALLOC(size);
   return (addr >= 0x81000000) ? NULL : (void*)addr;
 }
 
-inline static void _doscall_mfree(void* ptr) {
+inline static void _dos_mfree(void* ptr) {
   if (ptr == NULL) return;
   MFREE((uint32_t)ptr);
+}
+
+inline static void e_set232c(int32_t mode) {
+    
+  struct REGS in_regs = { 0 };
+  struct REGS out_regs = { 0 };
+
+  in_regs.d0 = 0xf1;
+  in_regs.d1 = mode;
+  in_regs.d2 = 0x0030;
+
+  TRAP15(&in_regs, &out_regs);
+}
+
+inline static uint8_t* e_buf232c(uint8_t* buf_addr, size_t buf_size, size_t* orig_size) {
+
+  struct REGS in_regs = { 0 };
+  struct REGS out_regs = { 0 };
+
+  in_regs.d0 = 0xf1;
+  in_regs.d1 = buf_size;
+  in_regs.d2 = 0x0036;
+  in_regs.a1 = (uint32_t)buf_addr;
+
+  TRAP15(&in_regs, &out_regs);
+
+  *orig_size = out_regs.d1;
+
+  return (uint8_t*)out_regs.a1;
+}
+
+// check enhanced RS232C call availability
+static int32_t e_rs232c_isavailable() {
+  int32_t v = INTVCG(0x1f1);
+  return (v < 0 || (v >= 0xfe0000 && v <= 0xffffff)) ? 0 : 1;
 }
 
 static void show_help() {
@@ -71,15 +106,27 @@ int32_t main(int32_t argc, uint8_t* argv[]) {
   int16_t timeout = 120;
   int16_t chunk_size = 8192;
   size_t buffer_size = 128 * 1024;
+  int16_t e_rs232c = 0;
 
-  // data buffer
+  // chunk data buffer
   uint8_t* chunk_data = NULL;
+
+  // rs232c buffer (for RSDRV.SYS)
+  uint8_t* rs232c_buffer = NULL;
+  uint8_t* rs232c_buffer_orig = NULL;
+  size_t rs232c_buffer_size = buffer_size;
+  size_t rs232c_buffer_size_orig = 0;
 
   // input file argument offset
   int16_t input_file_argc = -1;
 
   // input file handle
   FILE* fp = NULL;
+
+  // check RSDRV.SYS
+  if (e_rs232c_isavailable()) {
+    e_rs232c = 1;
+  }
 
   // command line options
   for (int16_t i = 1; i < argc; i++) {
@@ -93,6 +140,8 @@ int32_t main(int32_t argc, uint8_t* argv[]) {
       } else if (argv[i][1] == 'c' && i+1 < argc) {
         chunk_size = atoi(argv[i+1]);
         i++;
+      } else if (argv[i][1] == 'e') {
+        e_rs232c = 0;
       } else if (argv[i][1] == 'h') {
         show_help();
         goto exit;
@@ -140,10 +189,16 @@ int32_t main(int32_t argc, uint8_t* argv[]) {
   }
 
   // setup RS232C port
-  SET232C( 0x4C00 + speed );    // 8bit, non-P, 1stop, no-XON
+  if (e_rs232c) {
+    e_set232c( 0x4C00 + speed );
+    rs232c_buffer = _dos_malloc(rs232c_buffer_size);
+    rs232c_buffer_orig = e_buf232c(rs232c_buffer, rs232c_buffer_size, &rs232c_buffer_size_orig);
+  } else {
+    SET232C( 0x4C00 + speed );    // 8bit, non-P, 1stop, no flow control
+  }
 
   // buffer memory allocation
-  chunk_data = _doscall_malloc(buffer_size);
+  chunk_data = _dos_malloc(buffer_size);
   if (chunk_data == NULL) {
     printf("error: cannot allocate buffer memory.\n");
     goto exit;
@@ -201,6 +256,10 @@ int32_t main(int32_t argc, uint8_t* argv[]) {
     printf("--\n");
 
     // eye catch and header
+    if (write_rs232c("        ", 8, timeout) != 0) {   // dummy
+      printf("error: transfer error.\n");
+      goto exit;
+    }
     if (write_rs232c("RSTX7650", 8, timeout) != 0) {
       printf("error: transfer error.\n");
       goto exit;
@@ -212,6 +271,35 @@ int32_t main(int32_t argc, uint8_t* argv[]) {
     write_rs232c(transfer_file_name, 32, timeout);
     write_rs232c(transfer_file_time, 19, timeout);
     write_rs232c(".................", 17, timeout);
+
+    // link ack
+    static uint8_t ack[4];
+    uint32_t tt0 = ONTIME();
+    uint32_t tt1 = tt0;
+    int16_t found = 0;
+    while ((tt1 - tt0) < timeout * 100) {
+      if (LOF232C() >= 4) {
+        found = 1;
+        break;
+      }
+      if (BITSNS(0) & 0x02) {
+        // ESC key
+        printf("Closed communication.\n");
+        goto exit;
+      }
+      tt1 = ONTIME();
+    } 
+    if (!found) {
+      printf("error: Cannot get link ack in time.\n");
+      goto exit;
+    }
+    for (int16_t i = 0; i < 4; i++) {
+      ack[i] = INP232C() & 0xff;
+    }
+    if (memcmp(ack, "LINK", 4) != 0) {
+      printf("error: cannot establish link.\n");
+      goto exit;
+    }
 
     // open file
     fp = fopen(input_file_name, "rb");
@@ -273,6 +361,34 @@ int32_t main(int32_t argc, uint8_t* argv[]) {
           goto exit;
         }
 
+        // chunk ack
+        tt0 = ONTIME();
+        tt1 = tt0;
+        found = 0;
+        while ((tt1 - tt0) < timeout * 100) {
+          if (LOF232C() >= 4) {
+            found = 1;
+            break;
+          }
+          if (BITSNS(0) & 0x02) {
+            // ESC key
+            printf("Closed communication.\n");
+            goto exit;
+          }
+          tt1 = ONTIME();
+        } 
+        if (!found) {
+          printf("error: Cannot get chunk ack in time.\n");
+          goto exit;
+        }
+        for (int16_t i = 0; i < 4; i++) {
+          ack[i] = INP232C() & 0xff;
+        }
+        if (memcmp(ack, "PASS", 4) != 0) {
+          printf("error: unexpected chunk ack.\n");
+          goto exit;
+        }
+
         total_size += chunk_len;
 
         crc = chunk_crc;
@@ -294,6 +410,33 @@ int32_t main(int32_t argc, uint8_t* argv[]) {
     fclose(fp);
     fp = NULL;
 
+    // file ack
+    tt0 = ONTIME();
+    tt1 = tt0;
+    found = 0;
+    while ((tt1 - tt0) < timeout * 100) {
+      if (LOF232C() >= 4) {
+        found = 1;
+        break;
+      }
+      if (BITSNS(0) & 0x02) {
+        // ESC key
+        printf("Closed communication.\n");
+        goto exit;
+      }
+      tt1 = ONTIME();
+    } 
+    if (!found) {
+      printf("error: Cannot get file ack in time.\n");
+      goto exit;
+    }
+    for (int16_t i = 0; i < 4; i++) {
+      ack[i] = INP232C() & 0xff;
+    }
+    if (memcmp(ack, "DONE", 4) != 0) {
+      printf("error: unexpected file ack.\n");
+      goto exit;
+    }
   }
 
   write_rs232c("RSTXDONE", 8, timeout);
@@ -305,6 +448,18 @@ int32_t main(int32_t argc, uint8_t* argv[]) {
 
 exit:
 
+  // resume buffer
+  if (e_rs232c) {
+    if (rs232c_buffer_orig != NULL) {
+      size_t sz;
+      e_buf232c(rs232c_buffer_orig, rs232c_buffer_size_orig, &sz);
+    }
+    if (rs232c_buffer != NULL) {
+      _dos_mfree(rs232c_buffer);
+      rs232c_buffer = NULL;
+    }
+  }
+
   // close input file handle
   if (fp != NULL) {
     fclose(fp);
@@ -313,7 +468,7 @@ exit:
 
   // free buffer
   if (chunk_data != NULL) {
-    _doscall_mfree(chunk_data);
+    _dos_mfree(chunk_data);
     chunk_data = NULL;
   }
 
