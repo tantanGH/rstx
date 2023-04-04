@@ -271,7 +271,25 @@ int32_t main(int32_t argc, uint8_t* argv[]) {
 
     // link ack
     static uint8_t ack[4];
-    while (LOF232C() < 4) {}
+    uint32_t tt0 = ONTIME();
+    uint32_t tt1 = tt0;
+    int16_t found = 0;
+    while ((tt1 - tt0) < timeout) {
+      if (LOF232C() >= 4) {
+        found = 1;
+        break;
+      }
+      if (BITSNS(0) & 0x02) {
+        // ESC key
+        printf("Closed communication.\n");
+        goto exit;
+      }
+      tt1 = ONTIME();
+    } 
+    if (!found) {
+      printf("error: Cannot get link ack in time.\n");
+      goto exit;
+    }
     for (int16_t i = 0; i < 4; i++) {
       ack[i] = INP232C() & 0xff;
     }
@@ -341,7 +359,25 @@ int32_t main(int32_t argc, uint8_t* argv[]) {
         }
 
         // chunk ack
-        while (LOF232C() < 4) {}
+        tt0 = ONTIME();
+        tt1 = tt0;
+        found = 0;
+        while ((tt1 - tt0) < timeout) {
+          if (LOF232C() >= 4) {
+            found = 1;
+            break;
+          }
+          if (BITSNS(0) & 0x02) {
+            // ESC key
+            printf("Closed communication.\n");
+            goto exit;
+          }
+          tt1 = ONTIME();
+        } 
+        if (!found) {
+          printf("error: Cannot get chunk ack in time.\n");
+          goto exit;
+        }
         for (int16_t i = 0; i < 4; i++) {
           ack[i] = INP232C() & 0xff;
         }
@@ -372,7 +408,25 @@ int32_t main(int32_t argc, uint8_t* argv[]) {
     fp = NULL;
 
     // file ack
-    while (LOF232C() < 4) {}
+    tt0 = ONTIME();
+    tt1 = tt0;
+    found = 0;
+    while ((tt1 - tt0) < timeout) {
+      if (LOF232C() >= 4) {
+        found = 1;
+        break;
+      }
+      if (BITSNS(0) & 0x02) {
+        // ESC key
+        printf("Closed communication.\n");
+        goto exit;
+      }
+      tt1 = ONTIME();
+    } 
+    if (!found) {
+      printf("error: Cannot get file ack in time.\n");
+      goto exit;
+    }
     for (int16_t i = 0; i < 4; i++) {
       ack[i] = INP232C() & 0xff;
     }
