@@ -25,7 +25,7 @@ TARGET_FILE = RSTX.X
 DOCUMENT_FILE = RSTX.DOC
 
 # Distribution package 
-PACKAGE_FILE = ../RSTX030.ZIP
+PACKAGE_FILE = ../RSTX040.ZIP
 
 # ヘッダ検索パス
 INCLUDE_FLAGS = -I${XDEV68K_DIR}/include/xc -I${XDEV68K_DIR}/include/xdev68k -I${XDEV68K_DIR}/include/zlib
