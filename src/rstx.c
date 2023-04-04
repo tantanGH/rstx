@@ -256,6 +256,10 @@ int32_t main(int32_t argc, uint8_t* argv[]) {
     printf("--\n");
 
     // eye catch and header
+    if (write_rs232c("        ", 8, timeout) != 0) {   // dummy
+      printf("error: transfer error.\n");
+      goto exit;
+    }
     if (write_rs232c("RSTX7650", 8, timeout) != 0) {
       printf("error: transfer error.\n");
       goto exit;
@@ -264,7 +268,6 @@ int32_t main(int32_t argc, uint8_t* argv[]) {
       printf("error: transfer error.\n");
       goto exit;
     }
-    write_rs232c("        ", 8, timeout);   // dummy
     write_rs232c(transfer_file_name, 32, timeout);
     write_rs232c(transfer_file_time, 19, timeout);
     write_rs232c(".................", 17, timeout);
@@ -274,7 +277,7 @@ int32_t main(int32_t argc, uint8_t* argv[]) {
     uint32_t tt0 = ONTIME();
     uint32_t tt1 = tt0;
     int16_t found = 0;
-    while ((tt1 - tt0) < timeout) {
+    while ((tt1 - tt0) < timeout * 100) {
       if (LOF232C() >= 4) {
         found = 1;
         break;
@@ -362,7 +365,7 @@ int32_t main(int32_t argc, uint8_t* argv[]) {
         tt0 = ONTIME();
         tt1 = tt0;
         found = 0;
-        while ((tt1 - tt0) < timeout) {
+        while ((tt1 - tt0) < timeout * 100) {
           if (LOF232C() >= 4) {
             found = 1;
             break;
@@ -411,7 +414,7 @@ int32_t main(int32_t argc, uint8_t* argv[]) {
     tt0 = ONTIME();
     tt1 = tt0;
     found = 0;
-    while ((tt1 - tt0) < timeout) {
+    while ((tt1 - tt0) < timeout * 100) {
       if (LOF232C() >= 4) {
         found = 1;
         break;
