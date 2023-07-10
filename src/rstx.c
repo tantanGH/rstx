@@ -10,7 +10,7 @@
 #include <zlib.h>
 #include "memory.h"
 
-#define VERSION "0.4.0"
+#define VERSION "0.4.1"
 
 inline static void* _dos_malloc(size_t size) {
   uint32_t addr = MALLOC(size);
@@ -473,9 +473,10 @@ exit:
   }
 
   // flush key buffer
-  while (B_KEYSNS() != 0) {
-    B_KEYINP();
-  }
+  //while (B_KEYSNS() != 0) {
+  //  B_KEYINP();
+  //}
+  KFLUSHIO(0xff);
 
   return rc;
 }
